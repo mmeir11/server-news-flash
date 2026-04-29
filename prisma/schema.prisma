@@ -1,0 +1,446 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  reader
+  publisher
+  moderator
+  editor
+  admin
+}
+
+enum AccountStatus {
+  active
+  suspended
+  banned
+}
+
+enum PublisherVerificationStatus {
+  unverified
+  pending
+  verified
+  rejected
+}
+
+enum ArticleStatus {
+  draft
+  published
+  under_review
+  restricted
+  removed
+  disputed
+}
+
+enum RecordingMode {
+  recorded
+  live
+  hybrid
+}
+
+enum MediaType {
+  avatar
+  article_thumbnail
+  article_video_original
+  article_video_variant
+}
+
+enum MediaStatus {
+  pending_upload
+  uploaded
+  processing
+  ready
+  failed
+}
+
+enum RatingType {
+  reliable
+  not_reliable
+  important
+}
+
+enum FollowTargetType {
+  publisher
+  niche
+}
+
+enum NotificationType {
+  new_article
+  comment
+  follow
+  rating
+  report_status
+  moderation_action
+  evidence_request
+}
+
+enum ReportTargetType {
+  article
+  comment
+  publisher
+}
+
+enum ReportStatus {
+  open
+  reviewing
+  resolved
+  dismissed
+}
+
+enum ModerationTargetType {
+  article
+  comment
+  publisher
+  user
+}
+
+enum ModerationActionType {
+  mark_under_review
+  restrict
+  remove
+  restore
+  verify
+  dispute
+  warn
+  suspend
+  ban
+}
+
+enum EditorialReviewStatus {
+  pending
+  verified
+  disputed
+  rejected
+}
+
+model Profile {
+  id                    String                    @id @db.Uuid
+  email                 String                    @unique
+  fullName              String?
+  avatarUrl             String?
+  bio                   String?
+  role                  UserRole                  @default(reader)
+  status                AccountStatus             @default(active)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  deletedAt             DateTime?
+  publisherProfile      PublisherProfile?
+  comments              Comment[]
+  ratings               Rating[]
+  bookmarks             Bookmark[]
+  follows               Follow[]
+  notifications         Notification[]            @relation("NotificationRecipient")
+  sentNotifications     Notification[]            @relation("NotificationActor")
+  articleViews          ArticleView[]
+  shares                Share[]
+  reports               Report[]                  @relation("ReportReporter")
+  assignedReports       Report[]                  @relation("ReportAssignee")
+  moderationActions     ModerationAction[]        @relation("ModerationActor")
+  editorialReviews      EditorialReview[]         @relation("EditorialReviewer")
+  credibilityScoreItems CredibilityScoreHistory[]
+}
+
+model PublisherProfile {
+  userId                    String                      @id @db.Uuid
+  displayName               String
+  handle                    String                      @unique
+  avatarUrl                 String?
+  bio                       String?
+  verificationStatus        PublisherVerificationStatus @default(unverified)
+  verifiedAt                DateTime?
+  credibilityScore          Float                       @default(50)
+  credibilityScoreBreakdown Json?
+  followerCount             Int                         @default(0)
+  articleCount              Int                         @default(0)
+  reliableCount             Int                         @default(0)
+  notReliableCount          Int                         @default(0)
+  importantCount            Int                         @default(0)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  user                      Profile                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articles                  Article[]
+  credibilityHistory        CredibilityScoreHistory[]
+
+  @@index([credibilityScore])
+  @@index([verificationStatus])
+}
+
+model Niche {
+  id           String    @id
+  label        String
+  description  String?
+  isEnabled    Boolean   @default(true)
+  articleCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  articles     Article[]
+}
+
+model Article {
+  id                    String                    @id @default(uuid()) @db.Uuid
+  publisherId           String                    @db.Uuid
+  nicheId               String
+  title                 String
+  summary               String?
+  content               String?
+  status                ArticleStatus             @default(draft)
+  recordingMode         RecordingMode             @default(recorded)
+  hasVideo              Boolean                   @default(false)
+  thumbnailUrl          String?
+  publishedAt           DateTime?
+  reliableCount         Int                       @default(0)
+  notReliableCount      Int                       @default(0)
+  importantCount        Int                       @default(0)
+  commentCount          Int                       @default(0)
+  shareCount            Int                       @default(0)
+  viewCount             Int                       @default(0)
+  reportCount           Int                       @default(0)
+  aiRiskFlags           Json?
+  metadata              Json?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  deletedAt             DateTime?
+  publisher             PublisherProfile          @relation(fields: [publisherId], references: [userId], onDelete: Restrict)
+  niche                 Niche                     @relation(fields: [nicheId], references: [id], onDelete: Restrict)
+  media                 ArticleMedia[]
+  comments              Comment[]
+  ratings               Rating[]
+  bookmarks             Bookmark[]
+  notifications         Notification[]
+  views                 ArticleView[]
+  shares                Share[]
+  hashtags              ArticleHashtag[]
+  reports               Report[]
+  moderationActions     ModerationAction[]
+  editorialReviews      EditorialReview[]
+  credibilityScoreItems CredibilityScoreHistory[]
+
+  @@index([status, publishedAt])
+  @@index([nicheId, publishedAt])
+  @@index([publisherId, publishedAt])
+  @@index([hasVideo, publishedAt])
+}
+
+model ArticleMedia {
+  id              String      @id @default(uuid()) @db.Uuid
+  articleId       String?     @db.Uuid
+  ownerId         String      @db.Uuid
+  type            MediaType
+  status          MediaStatus @default(pending_upload)
+  storageKey      String
+  publicUrl       String?
+  contentType     String
+  fileSize        Int?
+  durationSeconds Int?
+  width           Int?
+  height          Int?
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  completedAt     DateTime?
+  article         Article?    @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([ownerId, createdAt])
+  @@index([status])
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  articleId String    @db.Uuid
+  authorId  String    @db.Uuid
+  content   String
+  likeCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author    Profile   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports   Report[]
+
+  @@index([articleId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model Rating {
+  id        String     @id @default(uuid()) @db.Uuid
+  articleId String     @db.Uuid
+  userId    String     @db.Uuid
+  type      RatingType
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  article   Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@index([userId, createdAt])
+  @@index([articleId, type])
+}
+
+model Follow {
+  id         String           @id @default(uuid()) @db.Uuid
+  followerId String           @db.Uuid
+  targetType FollowTargetType
+  targetId   String
+  createdAt  DateTime         @default(now())
+  follower   Profile          @relation(fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, targetType, targetId])
+  @@index([followerId, targetType])
+  @@index([targetType, targetId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  articleId String   @db.Uuid
+  createdAt DateTime @default(now())
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  actorId   String?          @db.Uuid
+  articleId String?          @db.Uuid
+  type      NotificationType
+  title     String
+  message   String
+  actionUrl String?
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  user      Profile          @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     Profile?         @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  article   Article?         @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+}
+
+model ArticleView {
+  id             String   @id @default(uuid()) @db.Uuid
+  articleId      String   @db.Uuid
+  userId         String?  @db.Uuid
+  sessionId      String?
+  secondsWatched Int?
+  completionRate Float?
+  createdAt      DateTime @default(now())
+  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user           Profile? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Share {
+  id        String   @id @default(uuid()) @db.Uuid
+  articleId String   @db.Uuid
+  userId    String?  @db.Uuid
+  channel   String?
+  createdAt DateTime @default(now())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      Profile? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId, createdAt])
+}
+
+model Report {
+  id          String           @id @default(uuid()) @db.Uuid
+  reporterId  String           @db.Uuid
+  targetType  ReportTargetType
+  targetId    String           @db.Uuid
+  articleId   String?          @db.Uuid
+  commentId   String?          @db.Uuid
+  publisherId String?          @db.Uuid
+  reason      String
+  details     String?
+  status      ReportStatus     @default(open)
+  assignedTo  String?          @db.Uuid
+  decision    String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  resolvedAt  DateTime?
+  reporter    Profile          @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  assignee    Profile?         @relation("ReportAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  article     Article?         @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  comment     Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([reporterId, createdAt])
+}
+
+model ModerationAction {
+  id           String               @id @default(uuid()) @db.Uuid
+  targetType   ModerationTargetType
+  targetId     String               @db.Uuid
+  articleId    String?              @db.Uuid
+  actionType   ModerationActionType
+  reason       String
+  notes        String?
+  actorId      String               @db.Uuid
+  appealStatus String?
+  createdAt    DateTime             @default(now())
+  resolvedAt   DateTime?
+  actor        Profile              @relation("ModerationActor", fields: [actorId], references: [id], onDelete: Restrict)
+  article      Article?             @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model EditorialReview {
+  id         String                @id @default(uuid()) @db.Uuid
+  articleId  String                @db.Uuid
+  reviewerId String                @db.Uuid
+  status     EditorialReviewStatus
+  confidence Float?
+  notes      String?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  article    Article               @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  reviewer   Profile               @relation("EditorialReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model CredibilityScoreHistory {
+  id            String           @id @default(uuid()) @db.Uuid
+  publisherId   String           @db.Uuid
+  articleId     String?          @db.Uuid
+  calculatedBy  String?          @db.Uuid
+  previousScore Float?
+  newScore      Float
+  breakdown     Json?
+  reason        String?
+  createdAt     DateTime         @default(now())
+  publisher     PublisherProfile @relation(fields: [publisherId], references: [userId], onDelete: Cascade)
+  article       Article?         @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  calculator    Profile?         @relation(fields: [calculatedBy], references: [id], onDelete: SetNull)
+
+  @@index([publisherId, createdAt])
+  @@index([articleId, createdAt])
+}
+
+model ArticleHashtag {
+  id        String   @id @default(uuid()) @db.Uuid
+  articleId String   @db.Uuid
+  hashtag   String
+  createdAt DateTime @default(now())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, hashtag])
+  @@index([hashtag, createdAt])
+}

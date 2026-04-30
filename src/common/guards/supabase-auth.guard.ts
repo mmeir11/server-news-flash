@@ -20,14 +20,35 @@ export class SupabaseAuthGuard implements CanActivate {
       context.getClass(),
     ]);
 
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
     if (isPublic) {
+      const optionalToken = this.extractOptionalBearerToken(request);
+
+      if (optionalToken) {
+        try {
+          request.user = await this.authService.verifyBearerToken(optionalToken);
+        } catch {
+          request.user = undefined;
+        }
+      }
+
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractBearerToken(request);
     request.user = await this.authService.verifyBearerToken(token);
     return true;
+  }
+
+  private extractOptionalBearerToken(request: Request): string | undefined {
+    const authorization = request.headers.authorization;
+
+    if (!authorization?.startsWith('Bearer ')) {
+      return undefined;
+    }
+
+    return authorization.slice('Bearer '.length);
   }
 
   private extractBearerToken(request: Request): string {

@@ -12,14 +12,14 @@ export class ArticlesController {
 
   @Public()
   @Get()
-  listArticles(@Query() query: ListArticlesQueryDto) {
-    return this.articlesService.listArticles(query);
+  listArticles(@CurrentUser() user: AuthenticatedUser | undefined, @Query() query: ListArticlesQueryDto) {
+    return this.articlesService.listArticles(query, user);
   }
 
   @Public()
   @Get(':id')
-  getArticle(@Param('id', ParseUUIDPipe) id: string) {
-    return this.articlesService.getArticle(id);
+  getArticle(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser | undefined) {
+    return this.articlesService.getArticle(id, user);
   }
 
   @Post()

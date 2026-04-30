@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, RatingType } from '@prisma/client';
 import { presentArticle } from '../../common/presenters/newsflash-presenters';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PrismaService } from '../database/prisma.service';
@@ -21,7 +21,12 @@ export class BookmarksService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return { bookmarks: bookmarks.map((bookmark) => presentArticle(bookmark.article)), total: bookmarks.length };
+    const myRatings = await this.getMyRatings(bookmarks.map((bookmark) => bookmark.articleId), user);
+
+    return {
+      bookmarks: bookmarks.map((bookmark) => presentArticle(bookmark.article, myRatings.get(bookmark.articleId), true)),
+      total: bookmarks.length,
+    };
   }
 
   async createBookmark(user: AuthenticatedUser, dto: CreateBookmarkDto) {
@@ -40,5 +45,18 @@ export class BookmarksService {
 
   async deleteBookmark(user: AuthenticatedUser, articleId: string) {
     await this.prisma.bookmark.deleteMany({ where: { userId: user.id, articleId } });
+  }
+
+  private async getMyRatings(articleIds: string[], user: AuthenticatedUser): Promise<Map<string, RatingType>> {
+    if (articleIds.length === 0) {
+      return new Map();
+    }
+
+    const ratings = await this.prisma.rating.findMany({
+      where: { userId: user.id, articleId: { in: articleIds } },
+      select: { articleId: true, type: true },
+    });
+
+    return new Map(ratings.map((rating) => [rating.articleId, rating.type]));
   }
 }

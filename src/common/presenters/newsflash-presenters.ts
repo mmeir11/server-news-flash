@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, RatingType } from '@prisma/client';
 
 export type ArticleForCard = Prisma.ArticleGetPayload<{
   include: {
@@ -20,7 +20,7 @@ export type CommentForClient = Prisma.CommentGetPayload<{
 
 export type NotificationForClient = Prisma.NotificationGetPayload<{}>;
 
-export function presentArticle(article: ArticleForCard) {
+export function presentArticle(article: ArticleForCard, myRating?: RatingType | null, isBookmarked = false) {
   const video = article.media.find((item) => item.type === 'article_video_original' && item.publicUrl);
 
   return {
@@ -41,6 +41,8 @@ export function presentArticle(article: ArticleForCard) {
     share_count: article.shareCount,
     view_count: article.viewCount,
     has_video: article.hasVideo,
+    my_rating: myRating ?? null,
+    is_bookmarked: isBookmarked,
     created_date: (article.publishedAt ?? article.createdAt).toISOString(),
   };
 }
@@ -61,15 +63,19 @@ export function presentPublisher(publisher: PublisherForCard) {
   };
 }
 
-export function presentComment(comment: CommentForClient) {
+export function presentComment(comment: CommentForClient, currentUserId?: string, myLike = false) {
   return {
     id: comment.id,
     article_id: comment.articleId,
+    author_id: comment.authorId,
     author_name: comment.author.fullName ?? comment.author.email,
     author_avatar: comment.author.avatarUrl,
     content: comment.content,
     likes: comment.likeCount,
+    my_like: myLike,
+    is_mine: currentUserId ? comment.authorId === currentUserId : false,
     created_date: comment.createdAt.toISOString(),
+    updated_date: comment.updatedAt.toISOString(),
   };
 }
 

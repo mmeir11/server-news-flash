@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ArticleStatus, Prisma } from '@prisma/client';
+import { ArticleStatus, Prisma, RatingType } from '@prisma/client';
 import { presentArticle, presentPublisher } from '../../common/presenters/newsflash-presenters';
+import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PrismaService } from '../database/prisma.service';
 
 const publisherInclude = {
@@ -39,7 +40,7 @@ export class PublishersService {
     return presentPublisher(publisher);
   }
 
-  async getPublisherArticles(id: string, hasVideo?: boolean) {
+  async getPublisherArticles(id: string, user?: AuthenticatedUser, hasVideo?: boolean) {
     const articles = await this.prisma.article.findMany({
       where: {
         publisherId: id,
@@ -50,7 +51,35 @@ export class PublishersService {
       include: articleInclude,
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });
+    const myRatings = await this.getMyRatings(articles.map((article) => article.id), user);
+    const myBookmarks = await this.getMyBookmarks(articles.map((article) => article.id), user);
 
-    return { articles: articles.map(presentArticle), total: articles.length };
+    return { articles: articles.map((article) => presentArticle(article, myRatings.get(article.id), myBookmarks.has(article.id))), total: articles.length };
+  }
+
+  private async getMyRatings(articleIds: string[], user?: AuthenticatedUser): Promise<Map<string, RatingType>> {
+    if (!user || articleIds.length === 0) {
+      return new Map();
+    }
+
+    const ratings = await this.prisma.rating.findMany({
+      where: { userId: user.id, articleId: { in: articleIds } },
+      select: { articleId: true, type: true },
+    });
+
+    return new Map(ratings.map((rating) => [rating.articleId, rating.type]));
+  }
+
+  private async getMyBookmarks(articleIds: string[], user?: AuthenticatedUser): Promise<Set<string>> {
+    if (!user || articleIds.length === 0) {
+      return new Set();
+    }
+
+    const bookmarks = await this.prisma.bookmark.findMany({
+      where: { userId: user.id, articleId: { in: articleIds } },
+      select: { articleId: true },
+    });
+
+    return new Set(bookmarks.map((bookmark) => bookmark.articleId));
   }
 }

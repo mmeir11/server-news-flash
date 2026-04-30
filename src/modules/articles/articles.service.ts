@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ArticleStatus, MediaType, Prisma } from '@prisma/client';
+import { ArticleStatus, MediaType, Prisma, RatingType } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PrismaService } from '../database/prisma.service';
 import { CreateArticleDto, ListAdminArticlesQueryDto, ListArticlesQueryDto } from './articles.dto';
@@ -14,7 +14,7 @@ const articleInclude = {
 export class ArticlesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listArticles(query: ListArticlesQueryDto) {
+  async listArticles(query: ListArticlesQueryDto, user?: AuthenticatedUser) {
     const articles = await this.prisma.article.findMany({
       where: {
         status: ArticleStatus.published,
@@ -27,9 +27,11 @@ export class ArticlesService {
       orderBy: this.getOrderBy(query.sort),
       take: query.limit,
     });
+    const myRatings = await this.getMyRatings(articles.map((article) => article.id), user);
+    const myBookmarks = await this.getMyBookmarks(articles.map((article) => article.id), user);
 
     return {
-      data: articles.map(presentArticle),
+      data: articles.map((article) => presentArticle(article, myRatings.get(article.id), myBookmarks.has(article.id))),
       pagination: { cursor: null, has_more: false },
     };
   }
@@ -48,12 +50,12 @@ export class ArticlesService {
     });
 
     return {
-      data: articles.map(presentArticle),
+      data: articles.map((article) => presentArticle(article)),
       pagination: { cursor: null, has_more: false },
     };
   }
 
-  async getArticle(id: string) {
+  async getArticle(id: string, user?: AuthenticatedUser) {
     const article = await this.prisma.article.findFirst({
       where: { id, deletedAt: null },
       include: articleInclude,
@@ -63,7 +65,9 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
-    return presentArticle(article);
+    const myRatings = await this.getMyRatings([article.id], user);
+    const myBookmarks = await this.getMyBookmarks([article.id], user);
+    return presentArticle(article, myRatings.get(article.id), myBookmarks.has(article.id));
   }
 
   async createArticle(user: AuthenticatedUser, dto: CreateArticleDto) {
@@ -103,7 +107,7 @@ export class ArticlesService {
       data: { articleCount: { increment: 1 } },
     });
 
-    return this.getArticle(article.id);
+    return this.getArticle(article.id, user);
   }
 
   async deleteAdminArticle(id: string) {
@@ -133,6 +137,32 @@ export class ArticlesService {
       default:
         return [{ publishedAt: 'desc' }, { createdAt: 'desc' }];
     }
+  }
+
+  private async getMyRatings(articleIds: string[], user?: AuthenticatedUser): Promise<Map<string, RatingType>> {
+    if (!user || articleIds.length === 0) {
+      return new Map();
+    }
+
+    const ratings = await this.prisma.rating.findMany({
+      where: { userId: user.id, articleId: { in: articleIds } },
+      select: { articleId: true, type: true },
+    });
+
+    return new Map(ratings.map((rating) => [rating.articleId, rating.type]));
+  }
+
+  private async getMyBookmarks(articleIds: string[], user?: AuthenticatedUser): Promise<Set<string>> {
+    if (!user || articleIds.length === 0) {
+      return new Set();
+    }
+
+    const bookmarks = await this.prisma.bookmark.findMany({
+      where: { userId: user.id, articleId: { in: articleIds } },
+      select: { articleId: true },
+    });
+
+    return new Set(bookmarks.map((bookmark) => bookmark.articleId));
   }
 
   private async ensurePublisher(user: AuthenticatedUser) {

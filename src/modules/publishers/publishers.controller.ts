@@ -1,5 +1,7 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PublishersService } from './publishers.service';
 
 @Public()
@@ -18,9 +20,14 @@ export class PublishersController {
   }
 
   @Get(':id/articles')
-  getPublisherArticles(@Param('id', ParseUUIDPipe) id: string, @Query('has_video') hasVideo?: string) {
+  getPublisherArticles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Query('has_video') hasVideo?: string,
+  ) {
     return this.publishersService.getPublisherArticles(
       id,
+      user,
       hasVideo === undefined ? undefined : hasVideo === 'true',
     );
   }

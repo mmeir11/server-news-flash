@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class ListArticlesQueryDto {
   @IsOptional()
@@ -7,11 +7,11 @@ export class ListArticlesQueryDto {
   niche?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   publisherId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   publisher_id?: string;
 
   @IsOptional()
@@ -57,10 +57,19 @@ export class CreateArticleDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUUID(undefined, { each: true })
   media_ids?: string[];
 
   @IsOptional()
   @IsIn(['draft', 'published'])
   status?: 'draft' | 'published';
+}
+
+export class ListAdminArticlesQueryDto extends ListArticlesQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  override limit = 200;
 }

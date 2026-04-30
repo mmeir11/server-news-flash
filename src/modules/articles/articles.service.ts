@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ArticleStatus, MediaType, Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PrismaService } from '../database/prisma.service';
-import { CreateArticleDto, ListArticlesQueryDto } from './articles.dto';
+import { CreateArticleDto, ListAdminArticlesQueryDto, ListArticlesQueryDto } from './articles.dto';
 import { presentArticle } from '../../common/presenters/newsflash-presenters';
 
 const articleInclude = {
@@ -25,6 +25,25 @@ export class ArticlesService {
       },
       include: articleInclude,
       orderBy: this.getOrderBy(query.sort),
+      take: query.limit,
+    });
+
+    return {
+      data: articles.map(presentArticle),
+      pagination: { cursor: null, has_more: false },
+    };
+  }
+
+  async listAdminArticles(query: ListAdminArticlesQueryDto) {
+    const articles = await this.prisma.article.findMany({
+      where: {
+        deletedAt: null,
+        nicheId: query.niche,
+        publisherId: query.publisherId ?? query.publisher_id,
+        hasVideo: query.hasVideo ?? query.has_video,
+      },
+      include: articleInclude,
+      orderBy: [{ createdAt: 'desc' }],
       take: query.limit,
     });
 
@@ -85,6 +104,21 @@ export class ArticlesService {
     });
 
     return this.getArticle(article.id);
+  }
+
+  async deleteAdminArticle(id: string) {
+    const article = await this.prisma.article.findFirst({ where: { id, deletedAt: null } });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    await this.prisma.article.update({
+      where: { id },
+      data: { status: ArticleStatus.removed, deletedAt: new Date() },
+    });
+
+    return null;
   }
 
   private getOrderBy(sort: ListArticlesQueryDto['sort']): Prisma.ArticleOrderByWithRelationInput[] {

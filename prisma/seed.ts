@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export const prisma = new PrismaClient();
+
+type SeedArticle = (typeof articles)[number];
 
 const niches = [
   { id: 'ai', label: 'AI & Tech', description: 'Artificial intelligence, automation, and emerging technology.' },
@@ -75,7 +77,7 @@ const articles = [
     title: 'GPT-5 Achieves Human-Level Reasoning in New Benchmark Tests',
     summary: "OpenAI's latest model shows unprecedented performance across multiple cognitive benchmarks, raising both excitement and ethical concerns in the AI community.",
     content: '<p>OpenAI has revealed that its latest model achieved human-level reasoning capabilities across several standardized benchmark tests.</p><p>The model demonstrated proficiency in abstract reasoning, causal inference, and multi-step problem solving.</p><p>Researchers say the results point to meaningful progress, while AI safety experts warn that deployment needs strong governance.</p>',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoUrl: 'https://static.videezy.com/system/resources/previews/000/055/866/original/Weather-news-intro.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=600&fit=crop',
     reliableCount: 1243,
     notReliableCount: 56,
@@ -93,7 +95,7 @@ const articles = [
     title: 'Champions League Final: Barcelona Stuns Manchester City with Last-Minute Goal',
     summary: "A dramatic stoppage-time winner seals Barcelona's 3-2 victory in one of the greatest finals ever played.",
     content: '<p>Barcelona completed a stunning comeback to defeat Manchester City 3-2 at the Stade de France.</p><p>The winning goal arrived in stoppage time after a match full of momentum swings.</p>',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoUrl: 'https://static.videezy.com/system/resources/previews/000/055/934/original/Corona-news-intro-4K.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&h=600&fit=crop',
     reliableCount: 3421,
     notReliableCount: 12,
@@ -111,7 +113,8 @@ const articles = [
     title: 'Global Climate Summit Reaches Historic Carbon Tax Agreement',
     summary: '196 nations agree on a unified carbon pricing framework, marking the most significant climate policy achievement since the Paris Agreement.',
     content: '<p>Representatives from 196 nations reached an agreement on a unified carbon tax framework during the Global Climate Summit in Geneva.</p><p>The framework establishes a minimum global carbon price and support for developing nations.</p>',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    // videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    video_url: "https://samplelib.com/mp4/sample-5s.mp4",
     thumbnailUrl: 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?w=800&h=600&fit=crop',
     reliableCount: 5621,
     notReliableCount: 234,
@@ -146,7 +149,7 @@ const articles = [
     title: 'CRISPR Gene Therapy Cures Sickle Cell Disease in Landmark Trial',
     summary: 'All 45 patients in Phase 3 trial show complete remission after receiving one-time CRISPR-based gene therapy treatment.',
     content: '<p>A Phase 3 clinical trial demonstrated that CRISPR-based gene therapy can effectively cure sickle cell disease.</p><p>All participants showed remission after a one-time treatment.</p>',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    videoUrl: 'https://static.videezy.com/system/resources/previews/000/002/820/original/flyoverny.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=800&h=600&fit=crop',
     reliableCount: 4532,
     notReliableCount: 23,
@@ -183,7 +186,11 @@ const comments = [
   { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', articleId: articles[2].id, authorId: profiles[5].id, content: '$75/ton is a good start, but enforcement will matter more than the headline agreement.', likeCount: 342, createdAt: new Date('2026-04-28T19:00:00Z') },
 ];
 
-async function main() {
+function getArticleVideoUrl(article: SeedArticle) {
+  return 'videoUrl' in article ? article.videoUrl : article.video_url;
+}
+
+export async function seedDatabase() {
   for (const niche of niches) {
     await prisma.niche.upsert({ where: { id: niche.id }, update: niche, create: niche });
   }
@@ -255,11 +262,13 @@ async function main() {
       },
     });
 
-    if (article.videoUrl) {
+    const videoUrl = getArticleVideoUrl(article);
+
+    if (videoUrl) {
       const mediaId = article.id.replace('aaaaaaaa', 'bbbbbbbb');
       await prisma.articleMedia.upsert({
         where: { id: mediaId },
-        update: { publicUrl: article.videoUrl, status: 'ready' },
+        update: { publicUrl: videoUrl, status: 'ready' },
         create: {
           id: mediaId,
           articleId: article.id,
@@ -267,7 +276,7 @@ async function main() {
           type: 'article_video_original',
           status: 'ready',
           storageKey: `seed/videos/${article.id}.mp4`,
-          publicUrl: article.videoUrl,
+          publicUrl: videoUrl,
           contentType: 'video/mp4',
           completedAt: article.publishedAt,
         },
@@ -303,11 +312,13 @@ async function main() {
   console.log(`Seeded ${niches.length} niches, ${profiles.length} profiles, ${articles.length} articles.`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  seedDatabase()
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

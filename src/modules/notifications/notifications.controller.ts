@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationsService } from './notifications.service';
@@ -13,7 +13,7 @@ export class NotificationsController {
   }
 
   @Patch(':id/read')
-  markRead(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  markRead(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.notificationsService.markRead(user, id);
   }
 

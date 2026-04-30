@@ -131,6 +131,7 @@ model Profile {
   updatedAt             DateTime                  @updatedAt
   deletedAt             DateTime?
   publisherProfile      PublisherProfile?
+  authCredential        AuthCredential?
   comments              Comment[]
   ratings               Rating[]
   bookmarks             Bookmark[]
@@ -144,6 +145,15 @@ model Profile {
   moderationActions     ModerationAction[]        @relation("ModerationActor")
   editorialReviews      EditorialReview[]         @relation("EditorialReviewer")
   credibilityScoreItems CredibilityScoreHistory[]
+}
+
+model AuthCredential {
+  profileId    String   @id @db.Uuid
+  passwordHash String
+  salt         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
 model PublisherProfile {

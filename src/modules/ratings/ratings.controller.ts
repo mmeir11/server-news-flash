@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { RatingsService } from './ratings.service';
@@ -10,7 +10,7 @@ export class RatingsController {
 
   @Post()
   upsertRating(
-    @Param('articleId') articleId: string,
+    @Param('articleId', ParseUUIDPipe) articleId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpsertRatingDto,
   ) {

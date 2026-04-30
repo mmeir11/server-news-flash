@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { BookmarksService } from './bookmarks.service';
@@ -20,7 +20,7 @@ export class BookmarksController {
 
   @Delete(':articleId')
   @HttpCode(204)
-  deleteBookmark(@CurrentUser() user: AuthenticatedUser, @Param('articleId') articleId: string) {
+  deleteBookmark(@CurrentUser() user: AuthenticatedUser, @Param('articleId', ParseUUIDPipe) articleId: string) {
     return this.bookmarksService.deleteBookmark(user, articleId);
   }
 }

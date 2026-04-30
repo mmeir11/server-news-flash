@@ -5,6 +5,8 @@ export const validationSchema = Joi.object({
   PORT: Joi.number().port().default(3001),
   API_PREFIX: Joi.string().default('api'),
   CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
+  AUTH_TOKEN_SECRET: Joi.string().min(32).default('development-local-newsflash-auth-secret'),
+  AUTH_TOKEN_TTL_SECONDS: Joi.number().integer().min(300).default(604800),
   DATABASE_URL: Joi.string().required(),
   DIRECT_URL: Joi.string().allow('').optional(),
   SUPABASE_URL: Joi.string().uri().required(),

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -11,13 +11,13 @@ export class CommentsController {
 
   @Public()
   @Get()
-  getArticleComments(@Param('articleId') articleId: string) {
+  getArticleComments(@Param('articleId', ParseUUIDPipe) articleId: string) {
     return this.commentsService.getArticleComments(articleId);
   }
 
   @Post()
   createComment(
-    @Param('articleId') articleId: string,
+    @Param('articleId', ParseUUIDPipe) articleId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCommentDto,
   ) {

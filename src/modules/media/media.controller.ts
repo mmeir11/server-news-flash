@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { CompleteUploadDto, SignUploadDto } from './dto';
@@ -14,7 +14,11 @@ export class MediaController {
   }
 
   @Patch(':id/complete')
-  completeUpload(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CompleteUploadDto) {
+  completeUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteUploadDto,
+  ) {
     return this.mediaService.completeUpload(user, id, dto);
   }
 }

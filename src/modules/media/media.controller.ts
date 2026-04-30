@@ -14,11 +14,7 @@ export class MediaController {
   }
 
   @Patch(':id/complete')
-  completeUpload(@Param('id') id: string, @Body() dto: CompleteUploadDto) {
-    return {
-      id,
-      status: 'uploaded',
-      ...dto,
-    };
+  completeUpload(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CompleteUploadDto) {
+    return this.mediaService.completeUpload(user, id, dto);
   }
 }

@@ -30,6 +30,8 @@ export class MediaService {
         accessKeyId: config.getOrThrow<string>('R2_ACCESS_KEY_ID'),
         secretAccessKey: config.getOrThrow<string>('R2_SECRET_ACCESS_KEY'),
       },
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -40,7 +42,6 @@ export class MediaService {
       Bucket: this.bucket,
       Key: storageKey,
       ContentType: dto.contentType,
-      ContentLength: dto.fileSize,
     });
 
     const uploadUrl = await getSignedUrl(this.client, command, {
